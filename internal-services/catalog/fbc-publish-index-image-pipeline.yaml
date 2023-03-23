@@ -1,0 +1,33 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: release
+  labels:
+    app.kubernetes.io/version: "0.1"
+  name: fbc-publish-index-image
+spec:
+  description: Tekton release pipeline to interact with FBC Pipeline
+  params:
+  - name: sourceIndex
+    description: Built FBC index image to be published
+    type: string
+  - name: targetIndex
+    description: Target FBC index
+    type: string
+  - name: publishingCredentials
+    type: string
+    default: "fbc-publishing-pull-secret"
+  tasks:
+  - name: publish-index-image
+    params:
+    - name: sourceIndex
+      value: $(params.sourceIndex)
+    - name: targetIndex
+      value: $(params.targetIndex)
+    taskRef:
+      kind: Task
+      name: publish-index-image
+

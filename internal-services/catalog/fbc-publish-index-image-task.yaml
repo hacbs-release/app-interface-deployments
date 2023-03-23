@@ -1,0 +1,52 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: release
+  labels:
+    app.kubernetes.io/version: "0.1"
+  name: publish-index-image
+spec:
+  description: Publish a built FBC index image
+  params:
+  - name: sourceIndex
+    type: string
+    description: source index image
+  - name: targetIndex
+    type: string
+    description: target index image
+  - name: retries
+    type: string
+    default: "0"
+    description: number of retries
+  - name: publishingCredentials
+    type: string
+    default: "fbc-publishing-pull-secret"
+  steps:
+    - name: publish-index-image
+      image: >-
+          quay.io/hacbs-release/release-base-image@sha256:9e7fd1a3ccf0d2c8077f565c78e50862a7cc4792d548b5c01c8b09077e6d23a7
+      volumeMounts:
+        - name: publishing-secret
+          mountPath: /mnt/$(params.publishingCredentials)
+          readOnly: true
+      script: |
+        #!/usr/bin/env sh
+        PATH=/bin:/usr/bin:/usr/local/bin
+        export PATH
+
+        set -x
+        skopeo copy \
+        --all \
+        --preserve-digests \
+        --retry-times "$(params.retries)" \
+        --src-tls-verify=false \
+        "docker://$(params.sourceIndex)" \
+        --dest-authfile=/mnt/$(params.publishingCredentials)/.dockerconfigjson \
+        "docker://$(params.targetIndex)"
+  volumes:
+    - name: publishing-secret
+      secret:
+        secretName: $(params.publishingCredentials)
