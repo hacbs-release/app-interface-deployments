@@ -37,7 +37,6 @@ spec:
         PATH=/bin:/usr/bin:/usr/local/bin
         export PATH
 
-        set -x
         skopeo copy \
         --all \
         --preserve-digests \
