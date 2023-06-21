@@ -1,0 +1,126 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-process-file-updates
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: >-
+      Update files in a Git repository
+  params:
+      - name: repo
+        type: string
+        description: Git repository
+      - name: ref
+        type: string
+        description: Git branch
+      - name: paths
+        type: string
+        description: |
+            String containing a JSON array of file paths and its replacements
+            E.g. '[{"path":"file1.yaml","replacements":[{"key":".yamlkey1,","replacement":"|regex|replace|"}]}]'
+  results:
+      - name: fileUpdatesInfo
+        description: fileUpdates detailed information
+      - name: fileUpdatesState
+        description: fileUpdates state
+  steps:
+      - name: perform-updates
+        image: quay.io/hacbs-release/release-utils@sha256:17bf3669322362e3fef010bfb4f2b636a56e89d15880e027ca16eba3e6f9d16f
+        env:
+          - name: GITLAB_HOST
+            valueFrom:
+                secretKeyRef:
+                    name: file-updates-secret
+                    key: gitlab_host
+          - name: ACCESS_TOKEN
+            valueFrom:
+                secretKeyRef:
+                    name: file-updates-secret
+                    key: gitlab_access_token
+          - name: GIT_AUTHOR_NAME
+            valueFrom:
+                secretKeyRef:
+                    name: file-updates-secret
+                    key: git_author_name
+          - name: GIT_AUTHOR_EMAIL
+            valueFrom:
+                secretKeyRef:
+                    name: file-updates-secret
+                    key: git_author_email
+        script: |
+            #!/usr/bin/env sh
+            set -eo pipefail
+
+            # loading git and gitlab functions
+            . /home/utils/gitlab-functions
+            . /home/utils/git-functions
+
+            gitlab_init
+
+            # saves the params.paths json to a file
+            updatePathsTmpfile="/tmp/updatePaths.json"
+            cat > "${updatePathsTmpfile}" << JSON
+            $(params.paths)
+            JSON
+
+            REPO="$(params.repo)"
+            REVISION="$(params.ref)"
+
+            echo -e "=== UPDATING ${REPO} ON BRANCH ${REVISION} ===\n"
+
+            cd /tmp/
+            git_clone_and_checkout --repository "${REPO}" --revision "${REVISION}"
+
+            # getting the files that have replacements
+            PATHS_LENGTH="$(jq '. | length' ${updatePathsTmpfile})"
+            for (( PATH_INDEX=0; PATH_INDEX < $PATHS_LENGTH; PATH_INDEX++ )); do
+                targetFile="$(jq -cr ".[${PATH_INDEX}].path" ${updatePathsTmpfile})"
+
+                # we need to know how many empty newlines and `---` the file has before the actual yaml data starts excluding comments
+                blankLinesBeforeYaml="$(awk '/[[:alpha:]]+/{ if(! match($0, "^#")) { print NR-1; exit } }' ${targetFile})"
+
+                # getting the replacements for the file
+                REPLACEMENTS_LENGTH="$(jq -cr ".[${PATH_INDEX}].replacements | length" ${updatePathsTmpfile})"
+                for (( REPLACEMENT_INDEX=0; REPLACEMENT_INDEX < $REPLACEMENTS_LENGTH; REPLACEMENT_INDEX++ )); do
+                    key="$(jq -cr ".[${PATH_INDEX}].replacements[${REPLACEMENT_INDEX}].key" ${updatePathsTmpfile})"
+                    replacement="$(jq -cr ".[${PATH_INDEX}].replacements[${REPLACEMENT_INDEX}].replacement" ${updatePathsTmpfile})"
+
+                    # getting the key's position
+                    echo -en "Searching for key \`${key}\`: "
+                    foundAt="$(yq "${key} | line" ${targetFile})"
+                    if (( ${foundAt} == 0 )); then
+                        echo "NOT FOUND"
+                        continue
+                    fi
+                    echo "FOUND"
+
+                    # getting the value size (in number of lines)
+                    valueSize="$(yq "${key}" ${targetFile} |wc -l)"
+                    startBlock=$(( ${foundAt} + ${blankLinesBeforeYaml} ))
+
+                    # run the replace
+                    sed -i "${startBlock},+${valueSize}s${replacement}" "${targetFile}"
+                done
+            done
+
+            echo -e "\n*** START LOCAL CHANGES ***\n"
+            git diff
+            echo -e "\n*** END LOCAL CHANGES ***\n"
+
+            WORKING_BRANCH=`uuidgen |awk '{print substr($1, 1, 8)}'`
+            git_commit_and_push --branch $WORKING_BRANCH --message "fileUpdates changes"
+
+            echo "Creating Pull Request..."
+            GITLAB_MR_MSG="fileUpdates changes ${WORKING_BRANCH}"
+            gitlab_create_mr --head $REVISION --title "chore: ${GITLAB_MR_MSG}" \
+                --description "${GITLAB_MR_MSG}" > $(results.fileUpdatesInfo.path)
+            echo "Success" |tee $(results.fileUpdatesState.path)
+
+            echo -e "=== FINISHED. CLEANING UP ===\n"
+            cd /tmp
+            rm -rf ${OLDPWD}
