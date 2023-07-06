@@ -19,11 +19,9 @@ spec:
     - name: iibServiceConfigSecret
       type: string
       description: Secret containing IIB service Config
-      default: iib-services-config
     - name: iibFromImageOverwriteCredentials
       type: string
       description: Secret with overwrite FromImage credentials to be passed to IIB
-      default: iib-overwrite-fromimage-credentials
     - name: iibServiceAccountSecret
       type: string
       description: Secret containing the credentials for IIB service
