@@ -1,0 +1,48 @@
+---
+name: Linters
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: ['main']
+    types: ['opened', 'reopened', 'synchronize']
+  workflow_dispatch:
+jobs:
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run yamllint
+        uses: frenck/action-yamllint@v1
+        with:
+          path: internal-services/
+  tknparse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout files
+        uses: actions/checkout@v3
+      - name: install tkn
+        uses: ./.github/actions/install-tkn
+      - name: Get changed files
+        uses: tj-actions/changed-files@v35
+        id: changed-files
+        with:
+          files: |
+            internal-services/catalog/*.yaml
+      - name: Run tkn util
+        run: .github/scripts/tkn_check_parse.sh
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REFNAME: ${{ github.ref_name }}
+  gitlint:
+    name: Run gitlint checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install gitlint into container
+        run: python -m pip install gitlint
+      - name: Run gitlint check
+        run: gitlint --commits origin/${{ github.event.pull_request.base.ref }}..HEAD
