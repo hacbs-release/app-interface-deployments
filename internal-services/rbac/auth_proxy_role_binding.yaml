@@ -1,3 +1,4 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -13,7 +14,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: proxy-role
-subjects:
-- kind: ServiceAccount
-  name: controller-manager
-  namespace: stonesoup-int-srvc
+  subjects:
+  - kind: ServiceAccount
+    name: controller-manager
+    namespace: stonesoup-int-srvc

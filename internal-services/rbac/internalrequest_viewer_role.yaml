@@ -1,4 +1,5 @@
 # permissions for end users to view internalrequests.
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -10,18 +11,18 @@ metadata:
     app.kubernetes.io/part-of: internal-services
     app.kubernetes.io/managed-by: kustomize
   name: internalrequest-viewer-role
-rules:
-- apiGroups:
-  - appstudio.redhat.com
-  resources:
-  - internalrequests
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - appstudio.redhat.com
-  resources:
-  - internalrequests/status
-  verbs:
-  - get
+  rules:
+  - apiGroups:
+    - appstudio.redhat.com
+    resources:
+    - internalrequests
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - appstudio.redhat.com
+    resources:
+    - internalrequests/status
+    verbs:
+    - get

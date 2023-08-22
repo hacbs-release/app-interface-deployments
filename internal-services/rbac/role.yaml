@@ -5,65 +5,65 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
-- apiGroups:
-  - appstudio.redhat.com
+  - apiGroups:
+    - appstudio.redhat.com
   resources:
-  - internalrequests
+    - internalrequests
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
 - apiGroups:
-  - appstudio.redhat.com
+    - appstudio.redhat.com
   resources:
-  - internalrequests/finalizers
+    - internalrequests/finalizers
   verbs:
-  - update
+    - update
 - apiGroups:
-  - appstudio.redhat.com
+    - appstudio.redhat.com
   resources:
-  - internalrequests/status
+    - internalrequests/status
   verbs:
-  - get
-  - patch
-  - update
+    - get
+    - patch
+    - update
 - apiGroups:
-  - appstudio.redhat.com
+    - appstudio.redhat.com
   resources:
-  - internalservicesconfigs
+    - internalservicesconfigs
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
 - apiGroups:
-  - tekton.dev
+    - tekton.dev
   resources:
-  - pipelineruns
+    - pipelineruns
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
+    - create
+    - delete
+    - get
+    - list
+    - watch
 - apiGroups:
-  - tekton.dev
+    - tekton.dev
   resources:
-  - pipelineruns/status
+    - pipelineruns/status
   verbs:
-  - get
+    - get
 - apiGroups:
-  - tekton.dev
+    - tekton.dev
   resources:
-  - pipelines
+    - pipelines
   verbs:
-  - get
-  - list
-  - watch
+    - get
+    - list
+    - watch

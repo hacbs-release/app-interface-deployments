@@ -15,8 +15,8 @@ spec:
     singular: internalrequest
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=="Succeeded")].status
+        - additionalPrinterColumns:
+          - jsonPath: .status.conditions[?(@.type=="Succeeded")].status
       name: Succeeded
       type: string
     - jsonPath: .status.conditions[?(@.type=="Succeeded")].reason
@@ -30,12 +30,14 @@ spec:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
               of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              internal value, and may reject unrecognized values. 
+              Info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              submits requests to. Cannot be updated. In CamelCase. 
+              Info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -52,7 +54,7 @@ spec:
                 description: Request is the name of the internal internalrequest which
                   will be translated into a Tekton pipeline
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
-                type: string
+                  type: string
             required:
             - request
             type: object
@@ -111,7 +113,7 @@ spec:
                       pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     status:
-                      description: status of the condition, one of True, False, Unknown.
+                        description: status of the condition, one of True, False, Unknown.
                       enum:
                       - "True"
                       - "False"
@@ -119,13 +121,13 @@ spec:
                       type: string
                     type:
                       description: type of condition in CamelCase or in foo.example.com/CamelCase.
-                        --- Many .condition.type values are consistent across resources
-                        like Available, but because arbitrary conditions can be useful
-                        (see .node.status.conditions), the ability to deconflict is
-                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        --- Many .condition.type values are consistent across resources like Available.
+                        But because arbitrary conditions can be useful (see .node.status.conditions).
+                        The ability to deconflict is important.
+                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
-                      type: string
+                        type: string
                   required:
                   - lastTransitionTime
                   - message
