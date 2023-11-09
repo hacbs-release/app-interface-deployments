@@ -45,6 +45,10 @@ spec:
       type: string
       default: '[]'
       description: List of arches the index image should be built for
+    - name: hotfix
+      type: string
+      default: "false"
+      description: Whether this build is a hotfix build
     - name: buildTimeoutSeconds
       type: string
       description: IIB Build Service timeout seconds
@@ -69,6 +73,8 @@ spec:
           value: $(params.buildTags)
         - name: addArches
           value: $(params.addArches)
+        - name: hotfix
+          value: $(params.hotfix)
         - name: buildTimeoutSeconds
           value: $(params.buildTimeoutSeconds)
   results:

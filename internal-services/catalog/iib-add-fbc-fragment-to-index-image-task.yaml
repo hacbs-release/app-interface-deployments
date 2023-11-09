@@ -45,6 +45,10 @@ spec:
     - name: iibServiceAccountSecret
       type: string
       description: Secret with IIB credentials to be used
+    - name: hotfix
+      type: string
+      default: "false"
+      description: Whether this build is a hotfix build
   results:
     - name: jsonBuildInfo
       description: JSON build information for the requested build
@@ -55,7 +59,7 @@ spec:
   steps:
     - name: s-add-fbc-fragment-to-index-image
       image: >-
-        quay.io/hacbs-release/release-utils:06643f9e7c2b6ddf5e095bc735ce7c308793815d
+        quay.io/redhat-appstudio/release-service-utils:447ea0580a2cdd48b4091e1df86fab5c3f86d01c
       env:
         - name: IIB_SERVICE_URL
           valueFrom:
@@ -80,7 +84,7 @@ spec:
       script: |
         #!/usr/bin/env bash
         #
-        isFBCOptIn() {
+        isfbcOptIn() {
           TMPFILE=$(mktemp)
           PYXIS_URL="https://pyxis.engineering.redhat.com/v1"
 
@@ -92,8 +96,7 @@ spec:
           # strips the last "/tag" in case $TAG is not set
           [ -z "${TAG}" ] && FETCH_URL=${FETCH_URL%/tag*}
 
-          echo "Attempting to fetch from ${FETCH_URL} to check if fragment is \`fbc_opt_in==true\`..."
-          curl --insecure --negotiate -u: "${FETCH_URL}" -o $TMPFILE
+          curl --negotiate -u: "${FETCH_URL}" -o $TMPFILE
           # prints "false" in case .fbc_opt_in entry is missing
           jq -e -r '.fbc_opt_in //false' $TMPFILE && rm -f $TMPFILE
         }
@@ -113,19 +116,38 @@ spec:
         for PULL_SPEC in ${PULL_SPEC_LIST}; do
             # make sure they query is done using the internal name instead of the public
             PULL_SPEC=$(sed  's/registry.redhat.io/registry.access.redhat.com/g' <<< $PULL_SPEC)
-            FBCOptIn+=(`isFBCOptIn ${PULL_SPEC}`)
+
+            echo "Attempting to fetch from ${FETCH_URL} to check if fragment is \`fbc_opt_in==true\`..."
+            fbcOptIn+=(`isfbcOptIn ${PULL_SPEC}`)
         done
-        FBCOptIn=$(echo ${FBCOptIn} |sort |uniq)
 
-        # in case of more than one image all should have the same fbc_opt_in value
-        if [ $(wc -w <<< ${FBCOptIn[@]}) -eq 1 ]; then
-            echo -en "fbc_opt_in=${FBCOptIn}" | tee $(results.genericResult.path)
+        fbcOptIn=$(printf "%s\n" ${fbcOptIn[@]} |sort |uniq)
+        mustPublishIndexImage=$fbcOptIn
+        mustSignIndexImage=$fbcOptIn
+
+        if [ "$(params.hotfix)" == "true" ]; then
+            echo "Hotfix build"
+            fbcOptIn="false"
+            mustSignIndexImage="true"
+            mustPublishIndexImage="true"
         else
-            FBCOptIn="false"
-            echo -en "fbc_opt_in=false" | tee $(results.genericResult.path)
+            echo "Fragment has \`fbc_opt_in==${fbcOptIn}\`"
+            # in case of more than one image all should have the same fbc_opt_in value
+            if [ $(wc -w <<< ${fbcOptIn[@]}) -ne 1 ]; then
+                fbcOptIn="false"
+                mustSignIndexImage="true"
+                mustPublishIndexImage="true"
+            fi
         fi
-
-        echo "Fragment has \`fbc_opt_in==${FBCOptIn}\`"
+        jq -n -c \
+           --arg fbc_opt_in "${fbcOptIn}" \
+           --arg publish_index_image "${mustPublishIndexImage}" \
+           --arg sign_index_image "${mustSignIndexImage}" \
+           '{
+             "fbc_opt_in": $fbc_opt_in,
+             "publish_index_image": $publish_index_image,
+             "sign_index_image": $sign_index_image
+            } | tostring' | tee $(results.genericResult.path)
 
         # adds the json request parameters to a file to be used as input data
         # for curl and preventing shell expansion.
@@ -139,7 +161,7 @@ spec:
           "binary_image": "$(params.binaryImage)",
           "build_tags": `echo $(params.buildTags)`,
           "add_arches": `echo $(params.addArches)`,
-          "overwrite_from_index": ${FBCOptIn},
+          "overwrite_from_index": ${fbcOptIn},
           "overwrite_from_index_token": "${IIB_OVERWRITE_FROM_INDEX_USERNAME}:${IIB_OVERWRITE_FROM_INDEX_TOKEN}"
         }
         JSON
@@ -163,7 +185,7 @@ spec:
           mountPath: /mnt/service-account-secret
     - name: s-wait-for-build-state
       image: >-
-        quay.io/hacbs-release/release-utils:06643f9e7c2b6ddf5e095bc735ce7c308793815d
+        quay.io/redhat-appstudio/release-service-utils:447ea0580a2cdd48b4091e1df86fab5c3f86d01c
       env:
         - name: IIB_SERVICE_URL
           valueFrom:
@@ -182,7 +204,7 @@ spec:
         while true; do
             #
             # fetching build information.
-            build_info=\$(/usr/bin/curl -s --insecure "\${IIB_SERVICE_URL}/builds/\${build_id}")
+            build_info=\$(/usr/bin/curl -s "\${IIB_SERVICE_URL}/builds/\${build_id}")
             # get state from the build information.
             state=\$(jq -r ".state" <<< \${build_info})
             # remove the history as it breaks the results build up

@@ -52,12 +52,16 @@ spec:
         PATH=/bin:/usr/bin:/usr/local/bin
         export PATH
 
+        # do not authenticate if the source is redhat's "registry-proxy" which is unauthenticated.
+        if [[ "$(params.sourceIndex)" =~ ^registry-proxy(\/stage)?.engineering.redhat.com ]]; then
+            AUTH_PARAM="--src-creds ${SOURCE_INDEX_CREDENTIAL}"
+        fi
+
         (skopeo copy \
         --all \
         --preserve-digests \
         --retry-times "$(params.retries)" \
-        --src-tls-verify=false \
-        --src-creds "${SOURCE_INDEX_CREDENTIAL}" \
+        --src-tls-verify=false ${AUTH_PARAM} \
         "docker://$(params.sourceIndex)" \
         --dest-creds "${TARGET_INDEX_CREDENTIAL}" \
         "docker://$(params.targetIndex)" && \
