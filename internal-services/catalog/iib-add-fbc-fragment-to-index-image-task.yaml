@@ -121,7 +121,7 @@ spec:
             fbcOptIn+=(`isfbcOptIn ${PULL_SPEC}`)
         done
 
-        fbcOptIn=$(printf "%s\n" ${fbcOptIn[@]} |sort |uniq)
+        fbcOptIn=($(printf "%s\n" ${fbcOptIn[@]} |sort |uniq))
         mustPublishIndexImage=$fbcOptIn
         mustSignIndexImage=$fbcOptIn
 
