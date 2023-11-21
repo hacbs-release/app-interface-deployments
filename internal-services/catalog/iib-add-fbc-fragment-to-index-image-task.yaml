@@ -135,8 +135,8 @@ spec:
             # in case of more than one image all should have the same fbc_opt_in value
             if [ $(wc -w <<< ${fbcOptIn[@]}) -ne 1 ]; then
                 fbcOptIn="false"
-                mustSignIndexImage="true"
-                mustPublishIndexImage="true"
+                mustSignIndexImage="false"
+                mustPublishIndexImage="false"
             fi
         fi
         jq -n -c \
