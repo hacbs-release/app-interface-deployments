@@ -61,7 +61,7 @@ spec:
             - /mnt/internal-services/remote-client-config/kubeconfig
             - --leader-election-id
             - "staging-p01"
-          image: quay.io/redhat-appstudio/internal-services:enable-leader-election-override
+          image: quay.io/redhat-appstudio/internal-services:aadd837450da2ebccefb3d607feeeaaf390140d6
           name: manager
           securityContext:
             allowPrivilegeEscalation: false
