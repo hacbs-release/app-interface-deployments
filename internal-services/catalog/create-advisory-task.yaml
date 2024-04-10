@@ -81,6 +81,8 @@ spec:
             secretKeyRef:
               name: errata-service-account
               key: base64_keytab
+        - name: "ADVISORY_JSON"
+          value: "$(params.advisory_json)"
       script: |
           #!/usr/bin/env sh
           set -eo pipefail
@@ -112,6 +114,11 @@ spec:
           # This also cds into the git repo
           git_clone_and_checkout --repository $(params.repo) --revision "$REPO_BRANCH"
 
+          # Inject signing key into ADVISORY_JSON
+          signingKey=$(kubectl get configmap $(params.config_map_name) -o jsonpath="{.data.SIG_KEY_NAME}")
+          advisoryJsonWithKey=$(jq -c --arg key "$signingKey" \
+            '.content.images[] += {"signingKey": $key}' <<< "$ADVISORY_JSON")
+
           # write keytab to file
           echo -n ${SERVICE_ACCOUNT_KEYTAB} | base64 --decode > /tmp/keytab
           # workaround kinit: Invalid UID in persistent keyring name while getting default ccache
@@ -129,11 +136,6 @@ spec:
           mkdir -p "${ADVISORY_DIR}"
           ADVISORY_FILEPATH="${ADVISORY_DIR}/advisory.yaml"
           ADVISORY_NAME="${YEAR}:${ADVISORY_NUM}"
-
-          # Inject signing key into advisory_json
-          signingKey=$(kubectl get configmap $(params.config_map_name) -o jsonpath="{.data.SIG_KEY_NAME}")
-          advisoryJsonWithKey=$(jq -c --arg key "$signingKey" \
-            '.content.images[] += {"signingKey": $key}' <<< '$(params.advisory_json)')
 
           # Prepare variables for the advisory template
           DATA=$(jq -c '{"advisory":{"spec":.}}' <<< $advisoryJsonWithKey)

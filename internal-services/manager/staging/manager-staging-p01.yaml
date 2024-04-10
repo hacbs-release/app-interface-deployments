@@ -61,7 +61,7 @@ spec:
             - /mnt/internal-services/remote-client-config/kubeconfig
             - --leader-election-id
             - "staging-p01"
-          image: quay.io/redhat-appstudio/internal-services:aadd837450da2ebccefb3d607feeeaaf390140d6
+          image: quay.io/redhat-appstudio/internal-services:f4d159ed019cc8261efc87d17c783f575e3d772b
           name: manager
           securityContext:
             allowPrivilegeEscalation: false

@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager-staging-p01
+  name: controller-manager-prod-p01
   namespace: stonesoup-int-srvc
   labels:
     control-plane: controller-manager
     app.kubernetes.io/name: deployment
-    app.kubernetes.io/instance: controller-manager-staging-p01
+    app.kubernetes.io/instance: controller-manager-prod-p01
     app.kubernetes.io/component: manager
     app.kubernetes.io/created-by: internal-services
     app.kubernetes.io/part-of: internal-services
@@ -60,8 +60,8 @@ spec:
             - --remote-cluster-config-file
             - /mnt/internal-services/remote-client-config/kubeconfig
             - --leader-election-id
-            - "staging-p01"
-          image: quay.io/redhat-appstudio/internal-services:aadd837450da2ebccefb3d607feeeaaf390140d6
+            - "prod-p01"
+          image: quay.io/redhat-appstudio/internal-services:f4d159ed019cc8261efc87d17c783f575e3d772b
           name: manager
           securityContext:
             allowPrivilegeEscalation: false
@@ -103,4 +103,4 @@ spec:
       volumes:
         - name: remote-client-config
           secret:
-            secretName: remote-client-config-staging-p01
+            secretName: remote-client-config-prod-p01
