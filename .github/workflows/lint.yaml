@@ -50,3 +50,20 @@ jobs:
         run: python -m pip install gitlint
       - name: Run gitlint check
         run: gitlint --commits origin/${{ github.event.pull_request.base.ref }}..HEAD
+  checkton:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Checkton
+        id: checkton
+        uses: chmeliik/checkton@main
+        with:
+          fail-on-findings: false
+      - name: Upload SARIF File
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.checkton.outputs.sarif }}
+          category: checkton
