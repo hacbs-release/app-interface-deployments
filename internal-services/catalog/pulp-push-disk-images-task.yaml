@@ -42,7 +42,7 @@ spec:
       description: Success if the task succeeds, the error otherwise
   steps:
     - name: pull-and-push-images
-      image: quay.io/konflux-ci/release-service-utils:65d8db844c008e7736ec8dff307868525279484d
+      image: quay.io/konflux-ci/release-service-utils:2ecf04f67fd48ef50946d40b7840b77ccbdf6305
       env:
         - name: EXODUS_CERT
           valueFrom:
@@ -237,7 +237,7 @@ spec:
         # Add the files to the payload
         while IFS= read -r -d '' file ; do
             STAGED_JSON=$(jq --arg filename "$(basename "$file")" --arg path "$file" \
-              '.payload.files[.payload.files | length] = 
+              '.payload.files[.payload.files | length] =
               {"filename": $filename, "relative_path": $path}' <<< "$STAGED_JSON")
         done < <(find * -type f -print0)
 
