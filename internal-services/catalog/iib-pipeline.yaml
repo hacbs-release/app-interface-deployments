@@ -4,7 +4,7 @@ kind: Pipeline
 metadata:
   name: iib
   labels:
-    app.kubernetes.io/version: "0.3"
+    app.kubernetes.io/version: "0.3.1"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: fbc
@@ -15,7 +15,7 @@ spec:
     - name: binaryImage
       type: string
       default: ""
-      description: The Snapshot in JSON format
+      description: OCP binary image to be baked into the index image. (deprecated)
     - name: iibServiceConfigSecret
       type: string
       default: iib-services-config

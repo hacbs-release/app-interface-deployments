@@ -4,7 +4,7 @@ kind: Task
 metadata:
   name: t-add-fbc-fragment-to-index-image
   labels:
-    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/version: "0.2.2"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: release
@@ -22,8 +22,7 @@ spec:
     - name: binaryImage
       type: string
       description: ->
-        OCP binary image to be baked into the index image. This image is used to
-        serve the index image content on customer clusters.
+        OCP binary image to be baked into the index image. (deprecated)
     - name: buildTags
       type: string
       description: ->
@@ -178,7 +177,6 @@ spec:
         {
           "fbc_fragment": "$(params.fbcFragment)",
           "from_index": "$(params.fromIndex)",
-          "binary_image": "$(params.binaryImage)",
           "build_tags": `echo $(params.buildTags)`,
           "add_arches": `echo $(params.addArches)`,
           "overwrite_from_index": ${fbcOptIn},
@@ -188,7 +186,6 @@ spec:
 
         # filtering out empty params
         jq -r '
-          if .binary_image == "" then del(.binary_image) else . end |
           if .overwrite_from_index == false then del(( .overwrite_from_index, .overwrite_from_index_token)) else . end |
           if(.add_arches | length) == 0 then del(.add_arches) else . end |
           if(.build_tags | length) == 0 then del(.build_tags) else . end' ${json_raw_input} > ${json_input}
