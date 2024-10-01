@@ -78,7 +78,7 @@ spec:
         - name: KRB5_CONF_CONTENT
           valueFrom:
             secretKeyRef:
-              name: $(params.iibServiceConfigSecret)
+              name: iib-services-config
               key: krb5.conf
       script: |
         #!/usr/bin/env bash
@@ -198,7 +198,7 @@ spec:
         - name: IIB_SERVICE_URL
           valueFrom:
             secretKeyRef:
-              name: $(params.iibServiceConfigSecret)
+              name: iib-services-config
               key: url
       script: |
         #!/usr/bin/env bash
