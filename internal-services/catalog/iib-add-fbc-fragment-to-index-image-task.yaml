@@ -4,7 +4,7 @@ kind: Task
 metadata:
   name: t-add-fbc-fragment-to-index-image
   labels:
-    app.kubernetes.io/version: "0.2.2"
+    app.kubernetes.io/version: "0.3.1"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: release
@@ -19,11 +19,6 @@ spec:
       type: string
       description: ->
         Index image (catalog of catalogs) the FBC fragment will be added to
-    - name: binaryImage
-      type: string
-      description: ->
-        OCP binary image to be baked into the index image. This image is used to
-        serve the index image content on customer clusters.
     - name: buildTags
       type: string
       description: ->
@@ -36,12 +31,6 @@ spec:
       type: string
       default: "300"
       description: Timeout seconds to receive the build state
-    - name: iibServiceConfigSecret
-      type: string
-      description: Secret with IIB service config to be used
-    - name: iibOverwriteFromIndexCredential
-      type: string
-      description: Secret with overwrite FromIndex credentials to be passed to IIB
     - name: iibServiceAccountSecret
       type: string
       description: Secret with IIB credentials to be used
@@ -74,22 +63,22 @@ spec:
         - name: IIB_SERVICE_URL
           valueFrom:
             secretKeyRef:
-              name: $(params.iibServiceConfigSecret)
+              name: iib-services-config
               key: url
         - name: IIB_OVERWRITE_FROM_INDEX_USERNAME
           valueFrom:
             secretKeyRef:
-              name: $(params.iibOverwriteFromIndexCredential)
+              name: iib-overwrite-fromimage-credentials
               key: username
         - name: IIB_OVERWRITE_FROM_INDEX_TOKEN
           valueFrom:
             secretKeyRef:
-              name: $(params.iibOverwriteFromIndexCredential)
+              name: iib-overwrite-fromimage-credentials
               key: token
         - name: KRB5_CONF_CONTENT
           valueFrom:
             secretKeyRef:
-              name: $(params.iibServiceConfigSecret)
+              name: iib-services-config
               key: krb5.conf
       script: |
         #!/usr/bin/env bash
@@ -179,7 +168,6 @@ spec:
         {
           "fbc_fragment": "$(params.fbcFragment)",
           "from_index": "$(params.fromIndex)",
-          "binary_image": "$(params.binaryImage)",
           "build_tags": `echo $(params.buildTags)`,
           "add_arches": `echo $(params.addArches)`,
           "overwrite_from_index": ${fbcOptIn},
@@ -189,7 +177,6 @@ spec:
 
         # filtering out empty params
         jq -r '
-          if .binary_image == "" then del(.binary_image) else . end |
           if .overwrite_from_index == false then del(( .overwrite_from_index, .overwrite_from_index_token)) else . end |
           if(.add_arches | length) == 0 then del(.add_arches) else . end |
           if(.build_tags | length) == 0 then del(.build_tags) else . end' ${json_raw_input} > ${json_input}
@@ -211,7 +198,7 @@ spec:
         - name: IIB_SERVICE_URL
           valueFrom:
             secretKeyRef:
-              name: $(params.iibServiceConfigSecret)
+              name: iib-services-config
               key: url
       script: |
         #!/usr/bin/env bash
