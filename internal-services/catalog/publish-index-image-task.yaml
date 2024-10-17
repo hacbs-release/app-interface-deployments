@@ -54,14 +54,14 @@ spec:
 
         # do not authenticate if the source is redhat's "registry-proxy" which is unauthenticated.
         if [[ ! "$(params.sourceIndex)" =~ ^registry-proxy(\-stage)?.engineering.redhat.com ]]; then
-            AUTH_PARAM="--src-creds ${SOURCE_INDEX_CREDENTIAL}"
+            AUTH_PARAM=("--src-creds" "${SOURCE_INDEX_CREDENTIAL}")
         fi
 
         (skopeo copy \
         --all \
         --preserve-digests \
         --retry-times "$(params.retries)" \
-        --src-tls-verify=false "${AUTH_PARAM}" \
+        --src-tls-verify=false "${AUTH_PARAM[@]}" \
         "docker://$(params.sourceIndex)" \
         --dest-creds "${TARGET_INDEX_CREDENTIAL}" \
         "docker://$(params.targetIndex)" && \
