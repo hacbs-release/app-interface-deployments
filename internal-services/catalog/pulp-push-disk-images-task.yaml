@@ -4,7 +4,7 @@ kind: Task
 metadata:
   name: pulp-push-disk-images
   labels:
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.2.1"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: release
@@ -122,7 +122,7 @@ spec:
                 echo "$0: ERROR '$command' failed at line $line - exited with status $err" \
                   > "$(results.result.path)"
                 if [ -f "$STDERR_FILE" ] ; then
-                    cat "$STDERR_FILE" | tail -n 20 >> "$(results.result.path)"
+                    tail -n 20 "$STDERR_FILE" >> "$(results.result.path)"
                 fi
             fi
             exit 0 # exit the script cleanly as there is no point in proceeding past an error or exit call
@@ -155,7 +155,8 @@ spec:
         echo "$DOCKER_CONFIG_JSON" | sed -r 's/(^|\})[^{}]+(\{|$)/\1\2/g' > ~/.docker/config.json
         set -x
 
-        export DISK_IMAGE_DIR="$(mktemp -d)"
+        DISK_IMAGE_DIR="$(mktemp -d)"
+        export DISK_IMAGE_DIR
 
         process_component() { # Expected argument is [component json]
             COMPONENT=$1
@@ -258,7 +259,7 @@ spec:
               --arg version "$VERSION" \
               '.payload.files[.payload.files | length] = 
               {"filename": $filename, "relative_path": $path, "version": $version}' <<< "$STAGED_JSON")
-        done < <(find * -type f -print0)
+        done < <(find ./* -type f -print0)
 
         echo "$STAGED_JSON" | yq -P -I 4 > staged.yaml
 
