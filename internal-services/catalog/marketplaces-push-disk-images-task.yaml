@@ -1,0 +1,149 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: marketplaces-push-disk-images
+  labels:
+    app.kubernetes.io/version: "0.2.2"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: >-
+    Tekton task to push disk images to Cloud Marketplaces
+  params:
+    - name: snapshot_json
+      type: string
+      description: String containing a JSON representation of the snapshot spec
+    - name: concurrentLimit
+      type: string
+      description: The maximum number of images to be pulled at once
+      default: 3
+    - name: cloudMarketplacesSecret
+      type: string
+      description: Env specific secret containing the marketplaces credentials
+    - name: starmapMapping
+      type: string
+      description: The mappings for images to marketplaces using the StArMap V2 format 
+  results:
+    - name: result
+      description: Success if the task succeeds, the error otherwise
+  steps:
+    - name: pull-and-push-images-to-marketplaces
+      image: quay.io/konflux-ci/release-service-utils:7f7a156a835c773bbcd7e5d7e44df2f573db14f2
+      env:
+        - name: CLOUD_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: $(params.cloudMarketplacesSecret)
+              key: key
+      script: |
+        #!/usr/bin/env bash
+        set -ex
+
+        STDERR_FILE=/tmp/stderr.txt
+
+        exitfunc() {
+            local err=$1
+            local line=$2
+            local command="$3"
+            if [ "$err" -eq 0 ] ; then
+                echo -n "Success" > "$(results.result.path)"
+            else
+                echo "$0: ERROR '$command' failed at line $line - exited with status $err" \
+                  > "$(results.result.path)"
+                if [ -f "$STDERR_FILE" ] ; then
+                    tail -n 20 "$STDERR_FILE" >> "$(results.result.path)"
+                fi
+            fi
+            exit 0 # exit the script cleanly as there is no point in proceeding past an error or exit call
+        }
+        # due to set -e, this catches all EXIT and ERR calls and the task should never fail with nonzero exit code
+        trap 'exitfunc $? $LINENO "$BASH_COMMAND"' EXIT
+
+        # Setup required variables
+        set +x
+        STARMAP_MAPPING=$(params.starmapMapping)
+        STARMAP_MAPPING_FILE=/tmp/starmap.yaml
+        echo "$STARMAP_MAPPING" > "$STARMAP_MAPPING_FILE"
+        set -x
+
+        BASE_DIR="$(mktemp -d)"
+        DISK_IMGS_DIR="${BASE_DIR}/starmap/CLOUD_IMAGES"
+        mkdir -p "${DISK_IMGS_DIR}"
+
+
+        RUNNING_JOBS="\j" # Bash parameter for number of jobs currently running
+        NUM_COMPONENTS=$(jq '.components | length' <<< "$SNAPSHOT_JSON")
+
+        process_component() { # Expected argument is [component json]
+            COMPONENT=$1
+            PULLSPEC=$(jq -er '.containerImage' <<< "${COMPONENT}")
+            IMG_NAME=$(jq -er '.name' <<< "${COMPONENT}")
+            BUILD_NAME=$(jq -er '.contentGateway.productCode' <<< "${COMPONENT}")
+            BUILD_ARCH=$(jq -er '.staged.files[0].filename' <<< "${COMPONENT}")
+            BUILD_ARCH=${BUILD_ARCH%-*}   # Rstrip on -
+            BUILD_ARCH=${BUILD_ARCH##*-}  # Lstrip on -
+            RESOURCES_JSON='{"api": "v1", "resource": "CloudImage", "description": "", "boot_mode": "hybrid", "build": {}, "images": []}'
+            RESOURCES_JSON=$(jq -c --arg build_name "$BUILD_NAME" --arg build_arch "$BUILD_ARCH" \
+                            '.build.name=$build_name|.build.arch=$build_arch' <<< "$RESOURCES_JSON")
+            DESTINATION="${DISK_IMGS_DIR}/${IMG_NAME}"
+            mkdir -p "${DESTINATION}"
+            DOWNLOAD_DIR=$(mktemp -d)
+            cd "$DOWNLOAD_DIR"
+            # oras has very limited support for selecting the right auth entry,
+            # so create a custom auth file with just one entry
+            AUTH_FILE=$(mktemp)
+            select-oci-auth "${PULLSPEC}" > "$AUTH_FILE"
+            oras pull --registry-config "$AUTH_FILE" "$PULLSPEC"
+            NUM_MAPPED_FILES=$(jq '.staged.files | length' <<< "${COMPONENT}")
+            for ((i = 0; i < NUM_MAPPED_FILES; i++)); do
+                FILE=$(jq -c --arg i "$i" '.staged.files[$i|tonumber]' <<< "$COMPONENT")
+                SOURCE=$(jq -er '.source' <<< "$FILE")
+                FILENAME=$(jq -er '.filename' <<< "$FILE")
+                if [ -f "${SOURCE}.gz" ]; then
+                    gzip -d "${SOURCE}.gz"
+                fi
+                if [ -f "${DESTINATION}/${FILENAME}" ]; then
+                    echo -n "Multiple files use the same destination value: $DESTINATION" >&2
+                    echo " and filename value: $FILENAME. Failing..." >&2
+                    exit 1
+                fi
+                if [ "${FILENAME##*\.}" = "vhd" ];
+                    image_type="VHD"
+                else
+                    image_type="AMI"
+                fi
+                mv "$SOURCE" "${DESTINATION_FILE}" || echo "didn't find mapped file: ${SOURCE}"
+                RESOURCES_JSON=$(jq --arg filename $FILENAME \
+                    '.images[.images | length] = {"path": $filename, "architecture": "$arch"}' <<< "$RESOURCES_JSON")
+                RESOURCES_JSON=$(jq --arg image_type $image_type \
+                    '.type = "$image_type"' <<< "$RESOURCES_JSON")
+            done
+            echo "$RESOURCES_JSON" | yq -P -I 4 > "$DESTINATION/resources.yaml"
+        }
+
+
+        # Process each component in parallel
+        for ((i = 0; i < NUM_COMPONENTS; i++)); do
+            COMPONENT=$(jq -c --arg i "$i" '.components[$i|tonumber]' <<< "$SNAPSHOT_JSON")
+            # Limit batch size to concurrent limit
+            while (( ${RUNNING_JOBS@P} >= $(params.concurrentLimit) )); do
+                wait -n
+            done
+            process_component "$COMPONENT" 2> "$STDERR_FILE" &
+        done
+
+        # Wait for remaining processes to finish
+        while (( ${RUNNING_JOBS@P} > 0 )); do
+            wait -n
+        done
+
+        # Change to the subdir with the images
+        cd "${DISK_IMGS_DIR}"
+        # the file below is mandatory on Staged structures but not used by the CLOUD_IMAGES content type,
+        # as the latter uses the inner "resources.yaml" files from each subdirectory.
+        touch staged.yaml  
+
+        # Process the push
+        marketplacesvm_push_wrapper --debug --source "${BASE_DIR}" --starmap-file "$STARMAP_MAPPING_FILE" 2> "$STDERR_FILE"
