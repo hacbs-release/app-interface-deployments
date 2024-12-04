@@ -166,7 +166,7 @@ spec:
         # these results will be used by add-fbc-contribution to control
         # signing and publishing of the built fragment
         jq -n -c \
-           --arg fbc_opt_in "${fbcOptIn}" \
+           --arg fbc_opt_in "${mustOverwriteFromIndexImage}" \
            --arg publish_index_image "${mustPublishIndexImage}" \
            --arg sign_index_image "${mustSignIndexImage}" \
            '{
@@ -195,7 +195,7 @@ spec:
           "from_index": "$(params.fromIndex)",
           "build_tags": $(params.buildTags),
           "add_arches": $(params.addArches),
-          "overwrite_from_index": "${mustOverwriteFromIndexImage}",
+          "overwrite_from_index": ${mustOverwriteFromIndexImage},
           "overwrite_from_index_token": "${IIB_OVERWRITE_FROM_INDEX_USERNAME}:${IIB_OVERWRITE_FROM_INDEX_TOKEN}"
         }
         JSON
