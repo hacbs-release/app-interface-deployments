@@ -8,7 +8,7 @@ spec:
   - rhtap-releng-tenant
   - rh-managed-cnv-fbc-tenant
   - rh-managed-red-hat-acm-tenant
-  debug: false
+  debug: true
   volumeClaim:
     name: pipeline
     size: 1Gi
