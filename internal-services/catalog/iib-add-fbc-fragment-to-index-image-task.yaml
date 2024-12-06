@@ -122,12 +122,30 @@ spec:
 
         echo "${KRB5_CONF_CONTENT}" > "${KRB5_TEMP_CONF}"
         export KRB5_CONFIG="${KRB5_TEMP_CONF}"
-
         export KRB5_TRACE=/dev/stderr
 
         /usr/bin/kinit -V "${KRB5_PRINCIPAL}" -k -t /tmp/keytab
 
         set -x
+        # check if this fbc fragment is opt-in
+        echo "Fetching the image bundle from $(params.fbcFragment)..."
+        PULL_SPEC_LIST=$(opm render "$(params.fbcFragment)" | jq -r \
+        'select(.schema == "olm.bundle") | "\(.image)" | split("@")[0]' |uniq)
+
+        fbcOptIn="true"
+        for PULL_SPEC in ${PULL_SPEC_LIST}; do
+            # make sure they query is done using the internal name instead of the public
+            PULL_SPEC="${PULL_SPEC//registry.redhat.io/registry.access.redhat.com}"
+            echo "Attempting to fetch from ${FETCH_URL} to check if fragment is \`fbc_opt_in==true\`..."
+            if [ "$(isFBCOptIn "${PULL_SPEC}")" = "false" ]; then
+              fbcOptIn="false"
+              break
+            fi
+        done
+        mustOverwriteFromIndexImage="${fbcOptIn}"
+        mustPublishIndexImage="${fbcOptIn}"
+        mustSignIndexImage="${fbcOptIn}"
+
         if [ "$(params.hotfix)" == "true" ]; then
             echo "Hotfix build"
             mustOverwriteFromIndexImage="false"
@@ -138,35 +156,16 @@ spec:
             mustOverwriteFromIndexImage="false"
             mustSignIndexImage="false"
             mustPublishIndexImage="false"
-        else
-            # check if this fbc fragment is opt-in
-            echo "Fetching the image bundle from $(params.fbcFragment)..."
-            PULL_SPEC_LIST=$(opm render "$(params.fbcFragment)" | jq -r \
-            'select(.schema == "olm.bundle") | "\(.image)" | split("@")[0]' |uniq)
-
-            fbcOptIn="true"
-            for PULL_SPEC in ${PULL_SPEC_LIST}; do
-                # make sure they query is done using the internal name instead of the public
-                PULL_SPEC="${PULL_SPEC//registry.redhat.io/registry.access.redhat.com}"
-                echo "Attempting to fetch from ${FETCH_URL} to check if fragment is \`fbc_opt_in==true\`..."
-                if [ "$(isFBCOptIn "${PULL_SPEC}")" = "false" ]; then
-                  fbcOptIn="false"
-                  break
-                fi
-            done
-            mustOverwriteFromIndexImage="${fbcOptIn}"
-            mustPublishIndexImage="${fbcOptIn}"
-            mustSignIndexImage="${fbcOptIn}"
         fi
 
-        echo "Fragment has \`fbc_opt_in==${mustOverwriteFromIndexImage}\`"
+        echo "Fragment has \`fbc_opt_in==${fbcOptIn}\`"
         echo "             \`mustPublishIndexImage==${mustPublishIndexImage}\`"
         echo "             \`mustSignIndexImage==${mustSignIndexImage}\`"
 
         # these results will be used by add-fbc-contribution to control
         # signing and publishing of the built fragment
         jq -n -c \
-           --arg fbc_opt_in "${mustOverwriteFromIndexImage}" \
+           --arg fbc_opt_in "${fbcOptIn}" \
            --arg publish_index_image "${mustPublishIndexImage}" \
            --arg sign_index_image "${mustSignIndexImage}" \
            '{
