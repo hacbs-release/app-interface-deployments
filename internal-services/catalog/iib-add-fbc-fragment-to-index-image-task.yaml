@@ -4,7 +4,7 @@ kind: Task
 metadata:
   name: t-add-fbc-fragment-to-index-image
   labels:
-    app.kubernetes.io/version: "0.3.3"
+    app.kubernetes.io/version: "0.4.0"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: release
@@ -19,6 +19,10 @@ spec:
       type: string
       description: ->
         Index image (catalog of catalogs) the FBC fragment will be added to
+    - name: targetIndex
+      type: string
+      description: ->
+        Target index is the pullspec the FBC catalog will be pushed to
     - name: buildTags
       type: string
       description: ->
@@ -109,9 +113,24 @@ spec:
           fbc_fragment="${3}"
 
           # fetch only builds in progress or completed
-          curl -s "${IIB_SERVICE_URL}/builds?user=${user}&from_index=${from_index}" | \
+          build=$(curl -s "${IIB_SERVICE_URL}/builds?user=${user}&from_index=${from_index}" | \
             jq --arg fbc_fragment "${fbc_fragment}" \
-              '[.items[] |select(.fbc_fragment==$fbc_fragment and .state!="failed")][0] // empty'
+              '[.items[] |select(.fbc_fragment==$fbc_fragment and .state!="failed")][0] // empty')
+
+          if [ "$(jq -r '.state' <<< "${build}")" = "complete" ]; then
+            indexImageResolved="$(jq -r '.index_image_resolved' <<<  "${build}")"
+            newCatalogCreatedDate="$(date --date "$(skopeo inspect --config "docker://${indexImageResolved}" | \
+              jq -r .created)" "+%s")"
+            upstreamCatalogCreatedDate="$(date --date "$(skopeo inspect --config "docker://$(params.targetIndex)" | \
+              jq -r .created)" "+%s")"
+            # checks if the index_image_resolved in the previous completed build is newer
+            # than the upstream catalog index.
+            # in case the new catalog index is older than the upstream, a new build is
+            # required to assure the catalog integrity.
+            if [ "${newCatalogCreatedDate}" -gt "${upstreamCatalogCreatedDate}" ]; then
+              echo "${build}"
+            fi
+          fi
         }
 
         # performs kerberos authentication.

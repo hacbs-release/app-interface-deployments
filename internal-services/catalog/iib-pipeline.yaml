@@ -4,7 +4,7 @@ kind: Pipeline
 metadata:
   name: iib
   labels:
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
     tekton.dev/tags: fbc
@@ -23,6 +23,10 @@ spec:
       type: string
       description: ->
         Index image (catalog of catalogs) the FBC fragment will be added to
+    - name: targetIndex
+      type: string
+      description: ->
+        Target index is the pullspec the FBC catalog will be pushed to
     - name: buildTags
       type: string
       default: '[]'
@@ -55,6 +59,8 @@ spec:
           value: $(params.fbcFragment)
         - name: fromIndex
           value: $(params.fromIndex)
+        - name: targetIndex
+          value: $(params.targetIndex)
         - name: buildTags
           value: $(params.buildTags)
         - name: addArches
