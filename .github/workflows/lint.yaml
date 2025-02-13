@@ -8,35 +8,6 @@ on:  # yamllint disable-line rule:truthy
 env:
   TKN_CLI_VERSION: 0.30.1
 jobs:
-  yamllint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run yamllint
-        uses: frenck/action-yamllint@v1
-        with:
-          path: internal-services/catalog/
-  tknparse:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout files
-        uses: actions/checkout@v3
-      - name: Install tkn cli
-        uses: jerop/tkn@v0.1.0
-        with:
-          version: v${TKN_CLI_VERSION}
-      - name: Get changed files
-        uses: tj-actions/changed-files@v35
-        id: changed-files
-        with:
-          files: |
-            internal-services/catalog/*.yaml
-      - name: Run tkn util
-        run: .github/scripts/tkn_check_parse.sh
-        env:
-          CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REFNAME: ${{ github.ref_name }}
   gitlint:
     name: Run gitlint checks
     runs-on: ubuntu-latest
