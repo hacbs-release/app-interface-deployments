@@ -59,7 +59,7 @@ spec:
             - --leader-elect
             - --remote-cluster-config-file
             - /mnt/internal-services/remote-client-config/kubeconfig
-          image: quay.io/konflux-ci/internal-services:161b37c5409078000fbe5a161b6bc8c69c566d1f
+          image: quay.io/konflux-ci/internal-services:f625b58a23df1a02e981519133e44b28aff45e20
           name: manager
           securityContext:
             allowPrivilegeEscalation: false
