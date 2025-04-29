@@ -6,7 +6,7 @@ metadata:
 spec:
   allowList:
   - managed-release-team-tenant
-  - rhtap-releng-tenant-removed-since-we-want-to-ship-from-prod
+  - release-catalog-managed-e2e-tenant
   debug: true
   volumeClaim:
     name: pipeline
