@@ -1,2 +1,1 @@
-# app-interface-deployments
-
+## THIS REPOSITORY IS DEPRECATED. INTERNAL-SERVICES DEPLOYMENT IS NOW CONTROLLED IN [THE INFRA-COMMON-DEPLOYMENTS REPO](https://github.com/redhat-appstudio/infra-common-deployments/tree/main/components/internal-services).
